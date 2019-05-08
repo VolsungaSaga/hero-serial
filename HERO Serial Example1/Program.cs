@@ -18,8 +18,9 @@ namespace HERO_Serial_Example1
         // 2 headers + 1 checksum + 4 motor bytes
         static readonly byte PKG_LENGTH = 3 + 4;
         static readonly byte offset = 127;
+        static readonly byte talon_id_offset = 11; //Each Talon is numbered 11 - 17, so we'll want to subtract this number from whatever we're iterating over.
 
-        static CTRE.Phoenix.MotorControl.CAN.TalonSRX[] myTalon = new CTRE.Phoenix.MotorControl.CAN.TalonSRX[4];
+        static CTRE.Phoenix.MotorControl.CAN.TalonSRX[] myTalon = new CTRE.Phoenix.MotorControl.CAN.TalonSRX[7];
 
         /** Serial object, this is constructed on the serial number. */
         static System.IO.Ports.SerialPort _uart;
@@ -65,10 +66,13 @@ namespace HERO_Serial_Example1
         /** entry point of the application */
         public static void Main()
         {
+            /* Here, we initialize and set the direction of each Talon (is 100 backwards or forwards?) */
             for (int i = 0; i < myTalon.Length; i++)
             {
-                myTalon[i] = new CTRE.Phoenix.MotorControl.CAN.TalonSRX(i + 1);
-                if (i == 2 || i == 3)
+                int curTalonID = i + talon_id_offset;
+                myTalon[i] = new CTRE.Phoenix.MotorControl.CAN.TalonSRX(curTalonID);
+                /* The Talons of ID 2 and 4 are the left wheel motors, must invert them! */
+                if (curTalonID == 2 + talon_id_offset || curTalonID == 4 + talon_id_offset)
                 {
                     myTalon[i].SetInverted(true);
                 }
@@ -139,22 +143,23 @@ namespace HERO_Serial_Example1
             }
         }
         /**
-         * write packets to Talon, ignoring the checksum
+         * write packets to Talon network, ignoring the checksum
          * */
         private static void WriteToTalon(byte[] packet)
         {
             for (int i = 0; i < packet.Length - 1; i++)
             {
                 double curByte = (packet[i] - offset);
+                int curTalonID = i + talon_id_offset;
                 if (curByte > 0)
                 {
-                    myTalon[i].SetInverted(false);
-                    myTalon[i].Set(CTRE.Phoenix.MotorControl.ControlMode.PercentOutput, curByte / 100);
+                    myTalon[curTalonID].SetInverted(false);
+                    myTalon[curTalonID].Set(CTRE.Phoenix.MotorControl.ControlMode.PercentOutput, curByte / 100);
                 }
                 else
                 {
-                    myTalon[i].SetInverted(true);
-                    myTalon[i].Set(CTRE.Phoenix.MotorControl.ControlMode.PercentOutput, -curByte / 100);
+                    myTalon[curTalonID].SetInverted(true);
+                    myTalon[curTalonID].Set(CTRE.Phoenix.MotorControl.ControlMode.PercentOutput, -curByte / 100);
                 }
             }
             CTRE.Phoenix.Watchdog.Feed();
